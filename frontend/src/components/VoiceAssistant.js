@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function VoiceAssistant({ latestData, predictedData, data = [] }) {
   const [listening, setListening] = useState(false);
-  const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState([]);
   const [recognition, setRecognition] = useState(null);
-  const [input, setInput] = useState("");
-  const chatRef = useRef(null);
 
-  // 🗣 Initialize SpeechRecognition
+  // 🧠 Initialize SpeechRecognition
   useEffect(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -30,124 +27,163 @@ export default function VoiceAssistant({ latestData, predictedData, data = [] })
     setRecognition(recog);
   }, []);
 
-  // 🎧 Scroll chat to latest
-  useEffect(() => {
-    if (chatRef.current)
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [messages]);
-
-  // 🎤 Start/stop listening
+  // 🎙️ Toggle listening
   const toggleListening = () => {
     if (!recognition) return;
     if (listening) {
       recognition.stop();
       setListening(false);
     } else {
-      recognition.start();
       setListening(true);
-      setShowChat(true);
+      recognition.start();
     }
   };
 
-  // 💬 Handle user query
-  const handleUserQuery = (query) => {
-    addMessage("user", query);
+  // 💬 Handle user voice/text query
+  const handleUserQuery = (rawQuery) => {
+    const query = rawQuery.trim().toLowerCase();
+    addMessage("user", rawQuery);
+
     const reply = generateReply(query);
     addMessage("bot", reply);
     speak(reply);
   };
 
-  // 🧠 AI reply generator
+  // 🧩 Generate AI-like response
   const generateReply = (query) => {
-    if (!latestData && !predictedData) {
-      return "Sorry, I don’t have any live sensor data yet.";
-    }
-
     const temps = data.map((d) => d.temperature).filter((t) => !isNaN(t));
     const hums = data.map((d) => d.humidity).filter((h) => !isNaN(h));
+
     const currentTemp =
-      latestData?.temperature ?? predictedData?.predicted_temperature ?? 0;
+      latestData?.temperature ?? predictedData?.predicted_temperature;
     const currentHum =
-      latestData?.humidity ?? predictedData?.predicted_humidity ?? 0;
-    const lower = query.toLowerCase();
+      latestData?.humidity ?? predictedData?.predicted_humidity;
 
-    if (lower.includes("current temperature"))
-      return `The current temperature is around ${currentTemp.toFixed(1)}°C.`;
+    let reply = "";
 
-    if (lower.includes("current humidity"))
-      return `The current humidity level is ${currentHum.toFixed(1)}%.`;
+    // --- AI logic ---
+    if (query.includes("next hour")) {
+      if (predictedData)
+        reply = `In the next hour, the temperature is expected around ${predictedData.predicted_temperature?.toFixed(
+          2
+        )}°C and humidity near ${predictedData.predicted_humidity?.toFixed(
+          2
+        )}%.`;
+      else reply = "Sorry, I don’t have prediction data yet.";
+    }
 
-    if (lower.includes("highest"))
-      return temps.length
-        ? `The highest temperature recorded so far is ${Math.max(...temps).toFixed(
-            1
-          )}°C.`
-        : "No temperature records available yet.";
+    else if (query.includes("highest")) {
+      if (temps.length)
+        reply = `The highest temperature recorded so far is ${Math.max(
+          ...temps
+        ).toFixed(2)}°C.`;
+      else reply = "No temperature data available yet.";
+    }
 
-    if (lower.includes("lowest"))
-      return temps.length
-        ? `The lowest temperature recorded so far is ${Math.min(...temps).toFixed(
-            1
-          )}°C.`
-        : "No temperature records available yet.";
+    else if (query.includes("lowest")) {
+      if (temps.length)
+        reply = `The lowest temperature recorded so far is ${Math.min(
+          ...temps
+        ).toFixed(2)}°C.`;
+      else reply = "No temperature data available yet.";
+    }
 
-    if (lower.includes("average"))
-      return temps.length && hums.length
-        ? `The average temperature today is ${(
-            temps.reduce((a, b) => a + b, 0) / temps.length
-          ).toFixed(1)}°C and average humidity is ${(
-            hums.reduce((a, b) => a + b, 0) / hums.length
-          ).toFixed(1)}%.`
-        : "No data available to calculate averages.";
+    else if (query.includes("current temperature")) {
+      if (currentTemp)
+        reply = `The current temperature is around ${currentTemp.toFixed(
+          2
+        )}°C.`;
+      else reply = "Sorry, I don’t have any live sensor data yet.";
+    }
 
-    if (lower.includes("next hour") || lower.includes("prediction"))
-      return predictedData
-        ? `In the next hour, the temperature is expected around ${predictedData.predicted_temperature}°C and humidity near ${predictedData.predicted_humidity}%.`
-        : "Prediction data is not available yet.";
+    else if (query.includes("humidity")) {
+      if (currentHum)
+        reply = `The current humidity level is ${currentHum.toFixed(
+          2
+        )} percent.`;
+      else reply = "Sorry, I don’t have any humidity data yet.";
+    }
 
-    if (lower.includes("air quality"))
-      return "Air quality seems moderate. Consider opening your windows for better ventilation.";
+    else if (query.includes("average")) {
+      if (temps.length && hums.length)
+        reply = `Today's average temperature is ${(temps.reduce(
+          (a, b) => a + b,
+          0
+        ) / temps.length).toFixed(2)}°C and average humidity is ${(
+          hums.reduce((a, b) => a + b, 0) / hums.length
+        ).toFixed(2)}%.`;
+      else reply = "Not enough data to calculate averages yet.";
+    }
 
-    if (lower.includes("window"))
-      return "Opening windows can improve air circulation if the outdoor air is clean.";
+    // 🌧️ Weather-related keywords
+    else if (
+      query.includes("rain") ||
+      query.includes("barish") ||
+      query.includes("storm") ||
+      query.includes("aandhi") ||
+      query.includes("toofan") ||
+      query.includes("flood")
+    ) {
+      if (currentHum > 75 || predictedData?.predicted_humidity > 75)
+        reply =
+          "It looks quite humid. There’s a chance of rain today. Keep an umbrella handy!";
+      else if (currentTemp > 35)
+        reply =
+          "The temperature is high and humidity is moderate — unlikely to rain soon.";
+      else
+        reply =
+          "No signs of rain or storm detected based on current conditions.";
+    }
 
-    return "I'm here to assist with temperature, humidity, and predictions. Try asking: 'What's the next hour prediction?'";
+    // 🌡️ Safety or comfort prompts
+    else if (query.includes("safe") || query.includes("weather")) {
+      reply =
+        "Weather seems normal right now. Stay hydrated and avoid direct sunlight if it gets hotter.";
+    }
+
+    else {
+      reply =
+        "I'm here to assist with temperature, humidity, and weather. Try asking: 'Will it rain today?' or 'What's the highest temperature?'";
+    }
+
+    return reply;
   };
 
-  // 🔊 Voice output
+  // 🔊 Speak out loud
   const speak = (text) => {
     const synth = window.speechSynthesis;
     if (!synth) return;
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = "en-US";
-    utter.pitch = 1;
     utter.rate = 1;
     synth.speak(utter);
   };
 
+  // 💡 Auto alerts based on live data
+  useEffect(() => {
+    if (!latestData) return;
+    if (latestData.temperature > 35)
+      speak("⚠️ Warning: High temperature detected. Stay hydrated!");
+    if (latestData.humidity > 85)
+      speak("⚠️ Humidity levels are very high. There might be a chance of rain.");
+  }, [latestData]);
+
+  // 🪶 Helper
   const addMessage = (role, text) => {
     setMessages((prev) => [...prev, { role, text }]);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (input.trim()) {
-      handleUserQuery(input.trim());
-      setInput("");
-    }
-  };
-
-  // 🎨 UI Rendering
+  // 💬 UI
   return (
     <>
-      {/* 🎙 Floating Button */}
+      {/* 🎤 Floating Mic Button */}
       <div
         onClick={toggleListening}
         style={{
           position: "fixed",
           bottom: 25,
           right: 25,
-          background: listening ? "#e53935" : "#1976d2",
+          background: listening ? "#d32f2f" : "#1976d2",
           color: "white",
           borderRadius: "50%",
           width: 65,
@@ -158,7 +194,6 @@ export default function VoiceAssistant({ latestData, predictedData, data = [] })
           fontSize: 28,
           cursor: "pointer",
           boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-          transition: "0.3s ease",
           zIndex: 1000,
         }}
         title="Ask the AI Assistant"
@@ -167,101 +202,50 @@ export default function VoiceAssistant({ latestData, predictedData, data = [] })
       </div>
 
       {/* 💬 Chat Window */}
-      {showChat && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 100,
-            right: 25,
-            width: 340,
-            background: "white",
-            borderRadius: 12,
-            boxShadow: "0 5px 20px rgba(0,0,0,0.25)",
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            zIndex: 999,
-            maxHeight: 360,
-          }}
-        >
+      <div
+        style={{
+          position: "fixed",
+          bottom: 100,
+          right: 25,
+          width: 350,
+          background: "white",
+          borderRadius: 12,
+          boxShadow: "0 5px 20px rgba(0,0,0,0.25)",
+          padding: 12,
+          maxHeight: 370,
+          overflowY: "auto",
+          zIndex: 999,
+          fontFamily: "Arial",
+        }}
+      >
+        <h4 style={{ textAlign: "center", color: "#1976d2", marginBottom: 8 }}>
+          🤖 AI Assistant
+        </h4>
+
+        {messages.map((m, i) => (
           <div
+            key={i}
             style={{
-              textAlign: "center",
-              fontWeight: "700",
-              color: "#1976d2",
-              marginBottom: 8,
-              fontSize: 16,
+              textAlign: m.role === "user" ? "right" : "left",
+              margin: "5px 0",
             }}
           >
-            🤖 AI Assistant
-          </div>
-
-          <div
-            ref={chatRef}
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              paddingRight: 5,
-              marginBottom: 8,
-            }}
-          >
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                style={{
-                  textAlign: m.role === "user" ? "right" : "left",
-                  margin: "5px 0",
-                }}
-              >
-                <span
-                  style={{
-                    background: m.role === "user" ? "#1976d2" : "#f1f1f1",
-                    color: m.role === "user" ? "white" : "black",
-                    padding: "7px 10px",
-                    borderRadius: 10,
-                    display: "inline-block",
-                    maxWidth: "85%",
-                    wordWrap: "break-word",
-                  }}
-                >
-                  {m.text}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Input Field */}
-          <form onSubmit={handleSubmit} style={{ display: "flex" }}>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask something..."
+            <span
               style={{
-                flex: 1,
-                padding: "8px",
-                border: "1px solid #ccc",
-                borderRadius: "8px 0 0 8px",
-                outline: "none",
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                background: "#1976d2",
-                color: "white",
-                border: "none",
-                borderRadius: "0 8px 8px 0",
-                padding: "8px 12px",
-                cursor: "pointer",
-                fontWeight: "600",
+                background: m.role === "user" ? "#1976d2" : "#f1f1f1",
+                color: m.role === "user" ? "white" : "black",
+                padding: "7px 10px",
+                borderRadius: 10,
+                display: "inline-block",
+                maxWidth: "85%",
+                wordWrap: "break-word",
               }}
             >
-              ➤
-            </button>
-          </form>
-        </div>
-      )}
+              {m.text}
+            </span>
+          </div>
+        ))}
+      </div>
     </>
   );
 }
