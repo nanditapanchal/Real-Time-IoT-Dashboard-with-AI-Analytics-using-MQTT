@@ -1,54 +1,51 @@
-// frontend/src/components/LiveData.js
-import React, { useEffect, useState } from "react";
+import React from "react";
 
-export default function LiveData() {
-  const [data, setData] = useState({ temperature: 0, humidity: 0 });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/data/live");
-        const json = await res.json();
-
-        // ✅ Validate data before setting it
-        if (
-          json &&
-          typeof json.temperature === "number" &&
-          typeof json.humidity === "number"
-        ) {
-          setData(json);
-        } else {
-          console.warn("⚠️ Invalid data received:", json);
-          setData({ temperature: 0, humidity: 0 });
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching live data:", err);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="p-4 bg-white rounded-xl shadow-md text-center">
-        <h2 className="text-xl font-semibold mb-2">🌡️ Live Sensor Data</h2>
-        <p className="text-gray-500">Loading data...</p>
-      </div>
-    );
-  }
+export default function LiveData({ data }) {
+  if (!data) return <p>Loading live data...</p>;
 
   return (
-    <div className="p-4 bg-white rounded-xl shadow-md text-center">
-      <h2 className="text-xl font-semibold mb-2">🌡️ Live Sensor Data</h2>
-      <p className="text-lg">Temperature: {data.temperature} °C</p>
-      <p className="text-lg">Humidity: {data.humidity} %</p>
+    <div
+      style={{
+        background: "linear-gradient(135deg, #fff3e0, #ffecb3)",
+        borderRadius: "16px",
+        padding: "25px",
+        textAlign: "center",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+      }}
+    >
+      <h2 style={{ color: "#e65100", fontWeight: "700", marginBottom: "10px" }}>
+        🌡️ Live Sensor Data
+      </h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-around",
+          fontSize: "1.2rem",
+          fontWeight: "600",
+          color: "#333",
+        }}
+      >
+        <div>
+          <p style={{ color: "#d84315", margin: "5px 0" }}>
+            Temperature:{" "}
+            <span style={{ fontWeight: "700" }}>
+              {data.temperature?.toFixed(2)} °C
+            </span>
+          </p>
+        </div>
+        <div>
+          <p style={{ color: "#00695c", margin: "5px 0" }}>
+            Humidity:{" "}
+            <span style={{ fontWeight: "700" }}>
+              {data.humidity?.toFixed(2)} %
+            </span>
+          </p>
+        </div>
+      </div>
+      <p style={{ color: "#777", marginTop: "10px", fontSize: "0.9rem" }}>
+        Last Updated:{" "}
+        <strong>{new Date(data.timestamp).toLocaleTimeString()}</strong>
+      </p>
     </div>
   );
 }
