@@ -13,7 +13,14 @@ import SensorData from "./models/SensorData.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://real-time-io-t-dashboard-with-ai-analytics-using-ljrz7ho1t.vercel.app",
+    "http://localhost:3000"
+  ],
+  methods: ["GET", "POST"],
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
