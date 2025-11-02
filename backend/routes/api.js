@@ -1,5 +1,5 @@
 import express from "express";
-import { Sensor } from "../server.js";
+import Sensor from "../models/SensorData.js"; // ✅ Correct import
 
 const router = express.Router();
 
