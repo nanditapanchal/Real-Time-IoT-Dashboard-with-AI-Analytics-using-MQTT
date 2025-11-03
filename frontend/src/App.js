@@ -5,7 +5,7 @@ import ChartSection from "./components/ChartSection";
 import AlertBox from "./components/AlertBox";
 import VoiceAssistant from "./components/VoiceAssistant";
 
-const socket = io(process.env.REACT_APP_API_URL);
+const socket = io("http://localhost:5000");
 
 function App() {
   const [data, setData] = useState([]);
@@ -25,15 +25,14 @@ function App() {
   }, []);
 
   const fetchPrediction = async () => {
-  try {
-    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/predict`);
-    const json = await res.json();
-    setPrediction(json);
-  } catch (e) {
-    console.error("Prediction fetch failed:", e);
-  }
-};
-
+    try {
+      const res = await fetch("http://localhost:5000/api/predict");
+      const json = await res.json();
+      setPrediction(json);
+    } catch (e) {
+      console.error("Prediction fetch failed:", e);
+    }
+  };
 
   const menuItems = ["Dashboard", "Live Data", "Analytics", "Alerts"];
 
